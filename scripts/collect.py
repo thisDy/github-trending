@@ -16,8 +16,7 @@ import json
 import os
 import sys
 import time
-import urllib.request
-import urllib.error
+import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -27,7 +26,7 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 HISTORY_DIR = DATA_DIR / "history"
 TODAY = datetime.utcnow().strftime("%Y-%m-%d")
 
-# 抓取配置
+# 抓取配置: 按 star 范围分批抓取
 STAR_RANGES = [
     (500000, 100000),
     (100000, 50000),
@@ -39,10 +38,8 @@ STAR_RANGES = [
     (1000, 500),
     (500, 200),
 ]
-PAGE_SIZE = 100  # GraphQL 每页最多 100 条
 
-
-# ─── GraphQL 查询 ─────────────────────────────────────────────
+# ─── GraphQL 查询 (精简版，避免资源限制) ──────────────────────
 QUERY = """
 query($query: String!, $cursor: String) {
   search(query: $query, type: REPOSITORY, first: 100, after: $cursor) {
@@ -57,23 +54,11 @@ query($query: String!, $cursor: String) {
         owner { login }
         description
         url
-        homepageUrl
         stargazerCount
         forkCount
-        watchers { totalCount }
-        issues(states: OPEN) { totalCount }
-        pullRequests(states: OPEN) { totalCount }
         primaryLanguage { name color }
-        languages(first: 5, orderBy: {field: SIZE, direction: DESC}) {
-          nodes { name color }
-        }
-        repositoryTopics(first: 10) {
-          nodes { topic { name } }
-        }
         createdAt
         pushedAt
-        updatedAt
-        licenseInfo { spdxId }
         isArchived
         isFork
       }
@@ -94,39 +79,53 @@ def get_token():
 
 
 def graphql_request(token, query, variables, retries=3):
-    """发送 GraphQL 请求，带重试"""
-    data = json.dumps({"query": query, "variables": variables}).encode('utf-8')
-    token = token.encode('ascii', errors='ignore').decode('ascii')
+    """发送 GraphQL 请求，带重试和 rate limit 处理"""
     headers = {
         "Authorization": f"bearer {token}",
         "Content-Type": "application/json",
         "User-Agent": "github-trending-collector"
     }
+    payload = {"query": query, "variables": variables}
 
     for attempt in range(retries):
         try:
-            req = urllib.request.Request(GRAPHQL_URL, data=data, headers=headers)
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                result = json.loads(resp.read())
-                if "errors" in result:
-                    print(f"  ⚠️ GraphQL errors: {result['errors']}")
-                return result
-        except urllib.error.HTTPError as e:
-            if e.code == 403:
+            resp = requests.post(GRAPHQL_URL, json=payload, headers=headers, timeout=30)
+
+            if resp.status_code == 403:
                 # Rate limited
-                reset_time = int(e.headers.get("X-RateLimit-Reset", 0))
+                reset_time = int(resp.headers.get("X-RateLimit-Reset", 0))
                 wait = max(reset_time - int(time.time()), 10)
                 print(f"  ⏳ Rate limited, waiting {wait}s...")
                 time.sleep(wait)
-            elif attempt < retries - 1:
-                time.sleep(2 ** attempt)
-            else:
-                raise
-        except Exception as e:
+                continue
+
+            if resp.status_code != 200:
+                print(f"  ⚠️ HTTP {resp.status_code}: {resp.text[:200]}")
+                if attempt < retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                return None
+
+            result = resp.json()
+            if "errors" in result:
+                # 非致命错误，继续处理
+                err_msg = result['errors'][0].get('message', '')
+                if 'RESOURCE_LIMITS_EXCEEDED' in err_msg:
+                    print(f"  ⚠️ 资源限制，部分数据可能缺失")
+                else:
+                    print(f"  ⚠️ GraphQL error: {err_msg[:100]}")
+            return result
+
+        except requests.exceptions.Timeout:
+            print(f"  ⏳ 请求超时 (attempt {attempt+1}/{retries})")
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
-            else:
-                raise
+        except Exception as e:
+            print(f"  ⚠️ 请求异常: {e}")
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
+
+    return None
 
 
 def fetch_repos_in_range(token, star_min, star_max):
@@ -136,36 +135,35 @@ def fetch_repos_in_range(token, star_min, star_max):
     cursor = None
     page = 0
 
-    while page < 10:  # 每个范围最多 10 页 = 1000 个仓库
+    while page < 5:  # 每个范围最多 5 页 = 500 个仓库
         variables = {"query": query_str, "cursor": cursor}
         result = graphql_request(token, QUERY, variables)
+
+        if not result:
+            break
 
         search = result.get("data", {}).get("search", {})
         nodes = search.get("nodes", [])
 
         for repo in nodes:
+            if not repo:
+                continue
             if repo.get("isArchived") or repo.get("isFork"):
                 continue
+
+            lang_info = repo.get("primaryLanguage") or {}
             repos.append({
                 "name": repo["nameWithOwner"],
                 "owner": repo["owner"]["login"],
                 "repo": repo["name"],
-                "desc": repo.get("description") or "",
+                "desc": (repo.get("description") or "")[:200],
                 "url": repo["url"],
-                "homepage": repo.get("homepageUrl") or "",
                 "stars": repo["stargazerCount"],
                 "forks": repo["forkCount"],
-                "watchers": repo.get("watchers", {}).get("totalCount", 0),
-                "open_issues": repo.get("issues", {}).get("totalCount", 0),
-                "open_prs": repo.get("pullRequests", {}).get("totalCount", 0),
-                "lang": repo.get("primaryLanguage", {}).get("name") if repo.get("primaryLanguage") else None,
-                "lang_color": repo.get("primaryLanguage", {}).get("color") if repo.get("primaryLanguage") else None,
-                "languages": [l["name"] for l in repo.get("languages", {}).get("nodes", [])],
-                "topics": [t["topic"]["name"] for t in repo.get("repositoryTopics", {}).get("nodes", [])],
+                "lang": lang_info.get("name"),
+                "lang_color": lang_info.get("color"),
                 "created_at": repo.get("createdAt"),
                 "pushed_at": repo.get("pushedAt"),
-                "updated_at": repo.get("updatedAt"),
-                "license": repo.get("licenseInfo", {}).get("spdxId") if repo.get("licenseInfo") else None,
             })
 
         page_info = search.get("pageInfo", {})
@@ -194,7 +192,7 @@ def collect_all(token):
 
         # 避免 rate limit
         if idx < total_ranges:
-            time.sleep(1)
+            time.sleep(2)
 
     return list(all_repos.values())
 
@@ -205,7 +203,6 @@ def load_history(date_str):
     if path.exists():
         with open(path) as f:
             data = json.load(f)
-            # 转成 dict: name -> repo
             return {r["name"]: r for r in data}
     return {}
 
@@ -221,7 +218,6 @@ def save_history(repos):
 
 def calculate_deltas(repos, history_today):
     """计算 star/fork 增量"""
-    # 加载 1天前、7天前、30天前的数据
     dates = {}
     for label, days in [("d1", 1), ("d7", 7), ("d30", 30)]:
         d = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -290,7 +286,7 @@ def generate_rankings(repos):
 
 
 def generate_summary(rankings):
-    """生成简要摘要（给前端用的轻量数据）"""
+    """生成前端用的轻量摘要"""
     def slim(repo_list, limit=30):
         return [{
             "n": r["name"],
@@ -299,9 +295,7 @@ def generate_summary(rankings):
             "f": r["forks"],
             "l": r.get("lang"),
             "lc": r.get("lang_color"),
-            "t": r.get("topics", [])[:5],
             "u": r["url"],
-            "hp": r.get("homepage", ""),
             "s1": r.get("star_d1"),
             "s7": r.get("star_d7"),
             "s30": r.get("star_d30"),
@@ -359,7 +353,6 @@ def main():
     history_today = {r["name"]: r for r in repos}
     repos = calculate_deltas(repos, history_today)
 
-    # 统计有效增量
     with_daily = sum(1 for r in repos if r.get("star_d1") is not None)
     with_weekly = sum(1 for r in repos if r.get("star_d7") is not None)
     with_monthly = sum(1 for r in repos if r.get("star_d30") is not None)
@@ -370,6 +363,14 @@ def main():
     # 4. 生成排行榜
     print(f"\n🏆 生成排行榜...")
     rankings = generate_rankings(repos)
+
+    # 如果没有增量数据（首次运行），按绝对 star 数排序
+    if not rankings["trending_daily"]:
+        rankings["trending_daily"] = sorted(repos, key=lambda x: x["stars"], reverse=True)[:100]
+    if not rankings["trending_weekly"]:
+        rankings["trending_weekly"] = sorted(repos, key=lambda x: x["stars"], reverse=True)[:100]
+    if not rankings["trending_monthly"]:
+        rankings["trending_monthly"] = sorted(repos, key=lambda x: x["stars"], reverse=True)[:100]
 
     # 5. 保存完整数据
     full_path = DATA_DIR / "rankings.json"
@@ -391,13 +392,13 @@ def main():
     print(f"\n🔥 今日 Star 增长 Top 10:")
     print(f"{'─' * 60}")
     for i, r in enumerate(rankings["trending_daily"][:10], 1):
-        delta = r.get("star_d1", 0)
+        delta = r.get("star_d1") or 0
         print(f"  {i:2d}. {r['name']:<40} +{delta:>5}⭐  ({r['stars']:>7}⭐)")
 
     print(f"\n📊 本周 Star 增长 Top 10:")
     print(f"{'─' * 60}")
     for i, r in enumerate(rankings["trending_weekly"][:10], 1):
-        delta = r.get("star_d7", 0)
+        delta = r.get("star_d7") or 0
         print(f"  {i:2d}. {r['name']:<40} +{delta:>6}⭐  ({r['stars']:>7}⭐)")
 
     print(f"\n✅ 采集完成！")
