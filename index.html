@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1a1816">
+<meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,15 +18,15 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  /* ── Layered Background (暖调奢华) ── */
-  --canvas:    #1a1816;              /* 最深 · 全局背景 · 暖棕灰 */
-  --surface-0: #201e1b;              /* 中间 · 统计栏 */
-  --surface-1: #28251f;              /* 最亮 · 卡片 */
-  --surface-2: #302c25;              /* hover 态卡片 */
+  /* ── Layered Background (统一暗色，仅靠边框分层) ── */
+  --canvas:    #161616;              /* 全局背景 · 纯深灰 */
+  --surface-0: #1a1a1a;              /* 统计栏 · 几乎同色 */
+  --surface-1: #1a1a1a;              /* 卡片 · 同色，靠边框 */
+  --surface-2: #202020;              /* hover 态 · 极微变化 */
 
   /* ── Border ── */
-  --border:    #3a3529;              /* 暖金描边 */
-  --border-h:  rgba(212,168,83,0.18); /* hover 态 · 金光 */
+  --border:    #2a2a2a;              /* 细灰描边 */
+  --border-h:  rgba(212,168,83,0.22); /* hover 态 · 金光 */
 
   /* ── Text ── */
   --tx-1:      #f5f0e8;              /* 主标题 · 暖白 */
@@ -60,7 +61,7 @@
   --sh-sheet: 0 -8px 40px rgba(0,0,0,0.5);
 }
 
-html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; background: #1a1816; color-scheme: dark; }
 body {
   font-family: var(--font);
   background: var(--canvas);
