@@ -5,290 +5,416 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#0c0c0e">
 <link rel="manifest" href="manifest.json">
-<title>GitHub 热榜 - 趋势追踪</title>
+<title>GitHub Trending</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* ─── Reset ─── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ─── Tokens ─── */
   :root {
-    --bg: #0f172a; --card: #1e293b; --border: #334155;
-    --text: #e2e8f0; --sub: #94a3b8; --muted: #64748b; --dim: #475569;
-    --orange: #f97316; --red: #ef4444; --green: #34d399;
-    --blue: #60a5fa; --purple: #a78bfa; --pink: #ec4899;
+    --bg:        #0c0c0e;
+    --surface:   #161618;
+    --surface-2: #1e1e21;
+    --border:    rgba(255,255,255,0.06);
+    --border-h:  rgba(255,255,255,0.10);
+    --text:      #f5f5f7;
+    --text-2:    #a1a1a6;
+    --text-3:    #6e6e73;
+    --accent:    #e8e8ed;
+    --accent-dim:#86868b;
+    --green:     #30d158;
+    --red:       #ff453a;
+    --radius:    10px;
+    --radius-lg: 14px;
+    --ease:      cubic-bezier(0.25, 0.1, 0.25, 1);
   }
+
+  /* ─── Base ─── */
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   body {
-    font-family: -apple-system, "PingFang SC", "SF Pro Text", "Helvetica Neue", sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg); color: var(--text);
-    min-height: 100vh; -webkit-tap-highlight-color: transparent;
+    min-height: 100vh; line-height: 1.5;
+    letter-spacing: -0.01em;
+    -webkit-tap-highlight-color: transparent;
   }
+
+  /* ─── Icon System (inline SVG sprites) ─── */
+  .icon { width: 16px; height: 16px; display: inline-block; vertical-align: middle; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .icon-sm { width: 14px; height: 14px; }
+  .icon-lg { width: 20px; height: 20px; }
+
+  /* ─── Shell ─── */
+  .shell { max-width: 680px; margin: 0 auto; padding: 0 20px; }
 
   /* ─── Header ─── */
   .header {
     position: sticky; top: 0; z-index: 100;
-    background: rgba(15,23,42,0.92);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    padding: 14px 16px 0; border-bottom: 1px solid var(--border);
+    background: rgba(12,12,14,0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border);
   }
-  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .header h1 { font-size: 20px; background: linear-gradient(135deg, var(--orange), var(--red), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .header .subtitle { font-size: 10px; color: var(--muted); margin-top: 1px; }
-  .header-actions { display: flex; gap: 8px; }
+  .header-inner {
+    max-width: 680px; margin: 0 auto;
+    padding: 16px 20px 0;
+  }
+  .header-row { display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+  .logo span { color: var(--text-3); font-weight: 400; margin-left: 4px; }
+  .header-actions { display: flex; gap: 2px; }
   .icon-btn {
-    background: var(--card); border: 1px solid var(--border);
-    color: var(--sub); border-radius: 10px;
-    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 16px; transition: all .2s;
+    background: transparent; border: none;
+    color: var(--text-3); border-radius: 8px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s var(--ease);
   }
-  .icon-btn:active { background: var(--border); }
-  .icon-btn.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .icon-btn:hover { color: var(--text-2); background: var(--surface); }
+  .icon-btn.active { color: var(--text); background: var(--surface-2); }
 
   /* ─── Search ─── */
-  .search-bar {
-    display: none; padding: 0 0 10px;
+  .search-row {
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height 0.3s var(--ease), opacity 0.2s var(--ease), padding 0.3s var(--ease);
+    padding: 0;
   }
-  .search-bar.show { display: flex; gap: 8px; }
+  .search-row.open { max-height: 60px; opacity: 1; padding: 12px 0 0; }
+  .search-wrap { display: flex; gap: 8px; }
   .search-input {
-    flex: 1; background: var(--card); border: 1px solid var(--border);
-    color: var(--text); border-radius: 10px;
-    padding: 8px 14px; font-size: 14px; outline: none;
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; font-family: inherit;
+    outline: none; transition: border-color 0.2s;
   }
-  .search-input::placeholder { color: var(--dim); }
-  .search-input:focus { border-color: var(--orange); }
+  .search-input::placeholder { color: var(--text-3); }
+  .search-input:focus { border-color: var(--border-h); }
   .search-cancel {
-    background: none; border: none; color: var(--sub);
-    font-size: 13px; cursor: pointer; padding: 0 4px;
+    background: none; border: none; color: var(--text-3);
+    font-size: 13px; font-family: inherit; cursor: pointer;
+    padding: 0 4px; white-space: nowrap;
   }
 
   /* ─── Tabs ─── */
-  .tabs {
-    display: flex; gap: 3px; background: var(--card);
-    border-radius: 11px; padding: 3px;
-  }
+  .tabs { display: flex; gap: 0; padding: 12px 0 0; }
   .tab-btn {
-    flex: 1; text-align: center; padding: 7px 0; border-radius: 9px;
-    font-size: 12px; font-weight: 500; color: var(--sub);
-    cursor: pointer; transition: all .2s; border: none; background: transparent;
+    flex: 1; text-align: center;
+    padding: 10px 0; background: transparent; border: none;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    color: var(--text-3); cursor: pointer;
+    position: relative; transition: color 0.2s;
   }
-  .tab-btn.active {
-    background: linear-gradient(135deg, var(--orange), var(--red));
-    color: #fff; font-weight: 700;
-    box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+  .tab-btn:hover { color: var(--text-2); }
+  .tab-btn.active { color: var(--text); }
+  .tab-btn.active::after {
+    content: ''; position: absolute; bottom: 0; left: 20%; right: 20%;
+    height: 1.5px; background: var(--text); border-radius: 1px;
   }
 
   /* ─── Language Filter ─── */
-  .lang-bar { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 10px 16px; }
-  .lang-bar::-webkit-scrollbar { display: none; }
-  .lang-btn {
-    flex-shrink: 0; background: var(--card); border: 1px solid var(--border);
-    color: var(--muted); border-radius: 16px;
-    padding: 4px 10px; font-size: 11px;
-    cursor: pointer; transition: all .2s; white-space: nowrap;
+  .lang-row {
+    display: flex; gap: 6px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    padding: 14px 0 2px;
   }
-  .lang-btn.active { background: var(--border); color: var(--text); font-weight: 600; }
+  .lang-row::-webkit-scrollbar { display: none; }
+  .lang-chip {
+    flex-shrink: 0;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-3); border-radius: 100px;
+    padding: 4px 12px; font-size: 12px; font-family: inherit;
+    font-weight: 400; cursor: pointer;
+    transition: all 0.2s var(--ease); white-space: nowrap;
+  }
+  .lang-chip:hover { border-color: var(--border-h); color: var(--text-2); }
+  .lang-chip.active {
+    background: var(--text); color: var(--bg);
+    border-color: var(--text); font-weight: 500;
+  }
 
   /* ─── Stats ─── */
-  .stats-bar { display: flex; justify-content: space-around; padding: 10px 16px; border-bottom: 1px solid var(--border); }
-  .stat-item { text-align: center; }
-  .stat-num { font-size: 18px; font-weight: 800; background: linear-gradient(135deg, var(--orange), var(--red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .stat-label { font-size: 10px; color: var(--muted); margin-top: 1px; }
-
-  /* ─── Content ─── */
-  .content { padding: 8px 12px 120px; }
+  .stats {
+    display: flex; gap: 1px; background: var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    margin: 16px 0;
+  }
+  .stat {
+    flex: 1; background: var(--surface); padding: 14px 16px; text-align: center;
+  }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.03em; }
+  .stat-label { font-size: 11px; color: var(--text-3); margin-top: 2px; letter-spacing: 0.02em; }
 
   /* ─── Card ─── */
   .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 12px; margin-bottom: 8px;
-    cursor: pointer; transition: all .15s; position: relative; overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease), transform 0.15s var(--ease);
+    position: relative;
   }
-  .card:active { transform: scale(0.98); background: #253347; }
-  .card-rank {
-    position: absolute; top: 0; left: 0; min-width: 24px; text-align: center;
-    padding: 3px 7px; font-size: 10px; font-weight: 800;
-    border-radius: 0 0 8px 0; color: #fff;
-  }
-  .rank-1 { background: linear-gradient(135deg, #f59e0b, #ef4444); }
-  .rank-2 { background: linear-gradient(135deg, #94a3b8, #64748b); }
-  .rank-3 { background: linear-gradient(135deg, #cd7f32, #a0522d); }
-  .rank-n { background: var(--border); color: var(--sub); }
-  .card-main { margin-left: 28px; }
-  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-  .card-name { font-size: 13px; font-weight: 700; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
-  .card-delta { font-size: 12px; font-weight: 800; color: var(--green); display: flex; align-items: center; gap: 2px; }
-  .card-desc { font-size: 11px; color: var(--sub); line-height: 1.5; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .card-meta { display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--muted); flex-wrap: wrap; }
-  .card-meta .lang-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 2px; vertical-align: middle; }
-  .card-meta span { display: flex; align-items: center; gap: 2px; white-space: nowrap; }
-  .card-topics { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
-  .topic-tag { font-size: 9px; padding: 1px 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
+  .card:hover { border-color: var(--border-h); }
+  .card:active { transform: scale(0.99); }
 
-  /* ─── Detail Panel (slide-up) ─── */
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .card-rank {
+    font-size: 11px; font-weight: 600; color: var(--text-3);
+    min-width: 24px; padding-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-info { flex: 1; min-width: 0; }
+  .card-name {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    letter-spacing: -0.01em;
+  }
+  .card-desc {
+    font-size: 12.5px; color: var(--text-3); line-height: 1.55;
+    margin-top: 4px;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-delta {
+    font-size: 13px; font-weight: 600; color: var(--green);
+    white-space: nowrap; padding-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-delta.zero { color: var(--text-3); }
+
+  .card-meta {
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 10px; font-size: 12px; color: var(--text-3);
+  }
+  .card-meta-item { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .card-meta-item .icon { color: var(--text-3); opacity: 0.6; }
+  .lang-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ─── Detail Panel ─── */
   .detail-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
     z-index: 500; opacity: 0; pointer-events: none;
-    transition: opacity .3s;
+    transition: opacity 0.3s var(--ease);
   }
   .detail-overlay.show { opacity: 1; pointer-events: auto; }
   .detail-panel {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--card); border-radius: 16px 16px 0 0;
+    background: var(--surface); border-radius: 16px 16px 0 0;
     z-index: 501; transform: translateY(100%);
-    transition: transform .3s ease-out;
-    max-height: 85vh; overflow-y: auto;
+    transition: transform 0.35s var(--ease);
+    max-height: 82vh; overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
   .detail-panel.show { transform: translateY(0); }
-  .detail-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 10px auto 0; }
-  .detail-header { padding: 14px 16px 10px; }
-  .detail-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-  .detail-subtitle { font-size: 12px; color: var(--sub); line-height: 1.5; }
-  .detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 16px 12px; }
-  .detail-stat {
-    background: var(--bg); border-radius: 10px; padding: 10px; text-align: center;
+  .detail-handle { width: 32px; height: 4px; background: var(--border-h); border-radius: 2px; margin: 10px auto 0; }
+  .detail-body { padding: 16px 24px 28px; max-width: 680px; margin: 0 auto; }
+  .detail-name { font-size: 20px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 6px; }
+  .detail-desc { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+
+  .detail-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    margin: 18px 0;
   }
-  .detail-stat-num { font-size: 16px; font-weight: 800; }
-  .detail-stat-num.up { color: var(--green); }
-  .detail-stat-num.neutral { color: var(--blue); }
-  .detail-stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
-  .detail-chart { padding: 0 16px 12px; }
-  .detail-chart-title { font-size: 12px; font-weight: 600; color: var(--sub); margin-bottom: 8px; }
-  .chart-container { background: var(--bg); border-radius: 10px; padding: 12px; height: 140px; position: relative; overflow: hidden; }
-  .chart-bars { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
-  .chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
-  .chart-bar { width: 100%; border-radius: 4px 4px 0 0; min-height: 2px; transition: height .5s ease-out; }
-  .chart-bar-label { font-size: 8px; color: var(--dim); }
-  .detail-links { display: flex; gap: 8px; padding: 0 16px 20px; }
+  .detail-cell {
+    background: var(--bg); border-radius: var(--radius);
+    padding: 12px; text-align: center;
+  }
+  .detail-cell-val { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .detail-cell-val.up { color: var(--green); }
+  .detail-cell-val.neutral { color: var(--text); }
+  .detail-cell-label { font-size: 10px; color: var(--text-3); margin-top: 3px; letter-spacing: 0.03em; text-transform: uppercase; }
+
+  .detail-chart { margin: 18px 0; }
+  .detail-chart-label { font-size: 11px; font-weight: 500; color: var(--text-3); margin-bottom: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .chart-area {
+    background: var(--bg); border-radius: var(--radius);
+    padding: 16px; height: 120px;
+    display: flex; align-items: flex-end; gap: 8px;
+  }
+  .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .chart-bar {
+    width: 100%; border-radius: 4px;
+    background: var(--text); opacity: 0.15;
+    transition: height 0.5s var(--ease);
+  }
+  .chart-bar.highlight { opacity: 1; background: var(--text); }
+  .chart-bar-label { font-size: 10px; color: var(--text-3); }
+
+  .detail-links { display: flex; gap: 8px; margin-top: 18px; }
   .detail-link {
-    flex: 1; text-align: center; padding: 10px;
+    flex: 1; text-align: center; padding: 11px;
     background: var(--bg); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text);
-    font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all .2s;
+    border-radius: var(--radius); color: var(--text-2);
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer; transition: all 0.2s;
     text-decoration: none; display: block;
   }
-  .detail-link:active { background: var(--border); }
-  .detail-link.primary { background: linear-gradient(135deg, var(--orange), var(--red)); border-color: transparent; color: #fff; }
+  .detail-link:hover { border-color: var(--border-h); color: var(--text); }
+  .detail-link.primary {
+    background: var(--text); color: var(--bg);
+    border-color: var(--text); font-weight: 600;
+  }
+  .detail-link.primary:hover { opacity: 0.9; }
 
   /* ─── Skeleton ─── */
-  .skeleton { animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-  .skeleton-card { background: var(--card); border-radius: 12px; padding: 12px 12px 12px 40px; margin-bottom: 8px; }
-  .skeleton-line { background: var(--border); border-radius: 5px; height: 10px; margin-bottom: 7px; }
-  .skeleton-line.s { width: 35%; } .skeleton-line.m { width: 65%; } .skeleton-line.l { width: 90%; }
+  .skeleton { animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+  .skel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 8px; }
+  .skel-line { background: var(--surface-2); border-radius: 4px; height: 10px; margin-bottom: 8px; }
+  .skel-line.w30 { width: 30%; } .skel-line.w60 { width: 60%; } .skel-line.w90 { width: 90%; }
 
   /* ─── Empty ─── */
-  .empty { text-align: center; padding: 50px 20px; color: var(--dim); }
-  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty { text-align: center; padding: 64px 24px; }
+  .empty-icon { width: 40px; height: 40px; margin: 0 auto 16px; color: var(--text-3); opacity: 0.4; }
+  .empty-text { font-size: 14px; color: var(--text-3); }
+  .empty-sub { font-size: 12px; color: var(--text-3); opacity: 0.6; margin-top: 4px; }
 
   /* ─── Toast ─── */
   .toast {
-    position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-20px);
-    background: var(--border); color: var(--text);
-    padding: 8px 18px; border-radius: 10px;
-    font-size: 12px; opacity: 0; transition: all .3s; z-index: 600; pointer-events: none;
+    position: fixed; top: 72px; left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-2); padding: 8px 18px; border-radius: 100px;
+    font-size: 12px; font-weight: 500;
+    opacity: 0; transition: all 0.3s var(--ease);
+    z-index: 600; pointer-events: none;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   /* ─── Install Banner ─── */
   .install-banner {
-    display: none; position: fixed; bottom: 16px; left: 12px; right: 12px;
-    background: linear-gradient(135deg, var(--card), var(--border));
-    border: 1px solid var(--dim); border-radius: 12px;
-    padding: 12px; z-index: 200;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: none; position: fixed; bottom: 16px; left: 16px; right: 16px;
+    background: var(--surface-2); border: 1px solid var(--border-h);
+    border-radius: var(--radius-lg); padding: 14px 16px;
+    z-index: 200; max-width: 400px; margin: 0 auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
   }
-  .install-banner.show { display: flex; align-items: center; gap: 10px; }
-  .install-banner p { flex: 1; font-size: 12px; color: #cbd5e1; }
-  .install-banner .btn-install {
-    background: linear-gradient(135deg, var(--orange), var(--red));
-    color: #fff; border: none; border-radius: 8px;
-    padding: 8px 14px; font-size: 12px; font-weight: 600;
+  .install-banner.show { display: flex; align-items: center; gap: 12px; }
+  .install-banner p { flex: 1; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+  .install-btn {
+    background: var(--text); color: var(--bg); border: none;
+    border-radius: 8px; padding: 8px 16px;
+    font-size: 12px; font-weight: 600; font-family: inherit;
     cursor: pointer; flex-shrink: 0;
   }
-  .install-banner .btn-close { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px; }
+  .install-close {
+    background: none; border: none; color: var(--text-3);
+    cursor: pointer; padding: 4px;
+  }
 
-  /* ─── Back to top ─── */
+  /* ─── Back Top ─── */
   .back-top {
-    position: fixed; bottom: 80px; right: 16px;
+    position: fixed; bottom: 24px; right: 24px;
     width: 36px; height: 36px; border-radius: 50%;
-    background: var(--card); border: 1px solid var(--border);
-    color: var(--sub); font-size: 16px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-3);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; opacity: 0; pointer-events: none;
-    transition: all .3s; z-index: 100;
+    transition: all 0.3s var(--ease); z-index: 100;
   }
   .back-top.show { opacity: 1; pointer-events: auto; }
+  .back-top:hover { color: var(--text); border-color: var(--border-h); }
+
+  /* ─── Responsive ─── */
+  @media (min-width: 768px) {
+    .shell { max-width: 720px; }
+    .header-inner { max-width: 720px; }
+    .detail-body { max-width: 720px; }
+    .stats { gap: 1px; }
+    .stat { padding: 18px 20px; }
+    .stat-value { font-size: 22px; }
+    .card { padding: 18px 22px; }
+    .detail-grid { gap: 8px; }
+    .detail-cell { padding: 16px; }
+  }
+
+  @media (min-width: 1024px) {
+    .shell { max-width: 780px; }
+    .header-inner { max-width: 780px; }
+  }
 </style>
 </head>
 <body>
 
-<!-- Header -->
 <div class="header">
-  <div class="header-top">
-    <div>
-      <h1>🔥 GitHub 热榜</h1>
-      <div class="subtitle" id="updateTime">加载中...</div>
+  <div class="header-inner">
+    <div class="header-row">
+      <div class="logo">Trending<span>/github</span></div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnSearch" onclick="toggleSearch()" aria-label="Search">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
+        <button class="icon-btn" id="btnSort" onclick="toggleSort()" aria-label="Sort order">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M9 18h6"/></svg>
+        </button>
+        <button class="icon-btn" id="btnRefresh" onclick="loadData()" aria-label="Refresh">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        </button>
+      </div>
     </div>
-    <div class="header-actions">
-      <button class="icon-btn" id="btnSearch" onclick="toggleSearch()">🔍</button>
-      <button class="icon-btn" id="btnTheme" onclick="toggleSort()">⬇️</button>
-      <button class="icon-btn" id="refreshBtn" onclick="loadData()">🔄</button>
+    <div class="search-row" id="searchRow">
+      <div class="search-wrap">
+        <input class="search-input" id="searchInput" placeholder="Search repositories, languages, topics..." oninput="onSearch()">
+        <button class="search-cancel" onclick="toggleSearch()">Cancel</button>
+      </div>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="daily">Daily</button>
+      <button class="tab-btn" data-tab="weekly">Weekly</button>
+      <button class="tab-btn" data-tab="monthly">Monthly</button>
+      <button class="tab-btn" data-tab="new">New</button>
     </div>
   </div>
-  <div class="search-bar" id="searchBar">
-    <input class="search-input" id="searchInput" placeholder="搜索仓库名、描述、语言..." oninput="onSearch()">
-    <button class="search-cancel" onclick="toggleSearch()">取消</button>
+</div>
+
+<div class="shell">
+  <div class="lang-row" id="langRow"></div>
+
+  <div class="stats" id="statsBar" style="display:none">
+    <div class="stat"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Tracked</div></div>
+    <div class="stat"><div class="stat-value" id="statUpdated">—</div><div class="stat-label">Updated</div></div>
+    <div class="stat"><div class="stat-value" id="statTopLang">—</div><div class="stat-label">Top Lang</div></div>
   </div>
-  <div class="tabs" id="tabs">
-    <button class="tab-btn active" data-tab="daily">📈 日增</button>
-    <button class="tab-btn" data-tab="weekly">📊 周增</button>
-    <button class="tab-btn" data-tab="monthly">🔥 月增</button>
-    <button class="tab-btn" data-tab="new">🆕 新项目</button>
+
+  <div id="content">
+    <div class="skel-card skeleton"><div class="skel-line w30"></div><div class="skel-line w90"></div><div class="skel-line w60"></div></div>
+    <div class="skel-card skeleton"><div class="skel-line w30"></div><div class="skel-line w90"></div><div class="skel-line w60"></div></div>
+    <div class="skel-card skeleton"><div class="skel-line w30"></div><div class="skel-line w90"></div><div class="skel-line w60"></div></div>
   </div>
 </div>
 
-<!-- Language Filter -->
-<div class="lang-bar" id="langBar"></div>
-
-<!-- Stats -->
-<div class="stats-bar" id="statsBar" style="display:none">
-  <div class="stat-item"><div class="stat-num" id="statTotal">-</div><div class="stat-label">追踪仓库</div></div>
-  <div class="stat-item"><div class="stat-num" id="statUpdated">-</div><div class="stat-label">更新时间</div></div>
-  <div class="stat-item"><div class="stat-num" id="statTopLang">-</div><div class="stat-label">最热语言</div></div>
-</div>
-
-<!-- Content -->
-<div class="content" id="content">
-  <div class="skeleton-card skeleton"><div class="skeleton-line s"></div><div class="skeleton-line l"></div><div class="skeleton-line m"></div></div>
-  <div class="skeleton-card skeleton"><div class="skeleton-line s"></div><div class="skeleton-line l"></div><div class="skeleton-line m"></div></div>
-  <div class="skeleton-card skeleton"><div class="skeleton-line s"></div><div class="skeleton-line l"></div><div class="skeleton-line m"></div></div>
-</div>
-
-<!-- Detail Panel -->
+<!-- Detail -->
 <div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
 <div class="detail-panel" id="detailPanel">
   <div class="detail-handle"></div>
-  <div class="detail-header">
-    <div class="detail-title" id="detailTitle">-</div>
-    <div class="detail-subtitle" id="detailDesc">-</div>
+  <div class="detail-body">
+    <div class="detail-name" id="detailName">—</div>
+    <div class="detail-desc" id="detailDesc">—</div>
+    <div class="detail-grid" id="detailGrid"></div>
+    <div class="detail-chart">
+      <div class="detail-chart-label">Growth</div>
+      <div class="chart-area" id="chartArea"></div>
+    </div>
+    <div class="detail-links" id="detailLinks"></div>
   </div>
-  <div class="detail-stats" id="detailStats"></div>
-  <div class="detail-chart">
-    <div class="detail-chart-title">📊 增长趋势</div>
-    <div class="chart-container" id="chartContainer"></div>
-  </div>
-  <div class="detail-links" id="detailLinks"></div>
 </div>
 
-<!-- Back to top -->
-<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<button class="back-top" id="backTop" onclick="scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">
+  <svg class="icon" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>
+</button>
 
-<!-- Install -->
 <div class="install-banner" id="installBanner">
-  <span style="font-size:24px">📲</span>
-  <p>添加到主屏幕，像 APP 一样使用</p>
-  <button class="btn-install" id="btnInstall">安装</button>
-  <button class="btn-close" onclick="el('installBanner').classList.remove('show')">✕</button>
+  <svg class="icon icon-lg" viewBox="0 0 24 24" style="flex-shrink:0;opacity:0.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  <p>Add to Home Screen for the best experience</p>
+  <button class="install-btn" id="btnInstall">Install</button>
+  <button class="install-close" onclick="el('installBanner').classList.remove('show')">
+    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -296,134 +422,127 @@
 <script>
 const el = id => document.getElementById(id);
 const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-const fmtN = n => { if (n == null) return '-'; if (n >= 10000) return (n/10000).toFixed(1) + 'w'; if (n >= 1000) return (n/1000).toFixed(1) + 'k'; return String(n); };
+const fmtN = n => { if (n == null) return '—'; if (n >= 10000) return (n/10000).toFixed(1) + 'w'; if (n >= 1000) return (n/1000).toFixed(1) + 'k'; return String(n); };
 const fmtD = n => { if (n == null) return ''; const p = n > 0 ? '+' : ''; if (n >= 10000) return p + (n/10000).toFixed(1) + 'w'; if (n >= 1000) return p + (n/1000).toFixed(1) + 'k'; return p + n; };
-const ago = iso => { if (!iso) return ''; const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000); if (m < 60) return m + '分钟前'; const h = Math.floor(m/60); if (h < 24) return h + '小时前'; return Math.floor(h/24) + '天前'; };
-const toast = m => { const t = el('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); };
+const ago = iso => { if (!iso) return ''; const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000); if (m < 60) return m + 'm'; const h = Math.floor(m/60); if (h < 24) return h + 'h'; return Math.floor(h/24) + 'd'; };
+const toast = m => { const t = el('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
 let data = null, currentTab = 'daily', currentLang = '', searchQuery = '', sortAsc = false, deferredPrompt = null;
 
-// ─── PWA ─────────────────────────────────────────────────────
+// ─── PWA ───
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; el('installBanner').classList.add('show'); });
-el('btnInstall').addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') toast('🎉 安装成功！'); deferredPrompt = null; el('installBanner').classList.remove('show'); } });
+el('btnInstall').addEventListener('click', async () => { if (deferredPrompt) { deferredPrompt.prompt(); (await deferredPrompt.userChoice).outcome === 'accepted' && toast('Installed'); deferredPrompt = null; el('installBanner').classList.remove('show'); } });
 
-// ─── Scroll ──────────────────────────────────────────────────
-window.addEventListener('scroll', () => { el('backTop').classList.toggle('show', window.scrollY > 400); });
+// ─── Scroll ───
+window.addEventListener('scroll', () => el('backTop').classList.toggle('show', scrollY > 500), { passive: true });
 
-// ─── Tabs ────────────────────────────────────────────────────
+// ─── Tabs ───
 el('tabs').addEventListener('click', e => {
-  const btn = e.target.closest('.tab-btn'); if (!btn) return;
-  el('tabs').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); currentTab = btn.dataset.tab; render();
+  const b = e.target.closest('.tab-btn'); if (!b) return;
+  el('tabs').querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); currentTab = b.dataset.tab; render();
 });
 
-// ─── Language ────────────────────────────────────────────────
-el('langBar').addEventListener('click', e => {
-  const btn = e.target.closest('.lang-btn'); if (!btn) return;
-  el('langBar').querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); currentLang = btn.dataset.lang; render();
+// ─── Language ───
+el('langRow').addEventListener('click', e => {
+  const b = e.target.closest('.lang-chip'); if (!b) return;
+  el('langRow').querySelectorAll('.lang-chip').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); currentLang = b.dataset.lang; render();
 });
 
-// ─── Search ──────────────────────────────────────────────────
+// ─── Search ───
 function toggleSearch() {
-  const bar = el('searchBar'); bar.classList.toggle('show');
+  const r = el('searchRow'); r.classList.toggle('open');
   el('btnSearch').classList.toggle('active');
-  if (bar.classList.contains('show')) { el('searchInput').focus(); } else { searchQuery = ''; el('searchInput').value = ''; render(); }
+  if (r.classList.contains('open')) el('searchInput').focus();
+  else { searchQuery = ''; el('searchInput').value = ''; render(); }
 }
 function onSearch() { searchQuery = el('searchInput').value.trim().toLowerCase(); render(); }
 
-// ─── Sort toggle ─────────────────────────────────────────────
-function toggleSort() { sortAsc = !sortAsc; el('btnTheme').textContent = sortAsc ? '⬆️' : '⬇️'; toast(sortAsc ? '升序排列' : '降序排列'); render(); }
+// ─── Sort ───
+function toggleSort() {
+  sortAsc = !sortAsc;
+  el('btnSort').classList.toggle('active', sortAsc);
+  toast(sortAsc ? 'Ascending' : 'Descending'); render();
+}
 
-// ─── Card click ──────────────────────────────────────────────
+// ─── Card Click ───
 el('content').addEventListener('click', e => {
   const card = e.target.closest('.card'); if (!card) return;
-  const name = card.dataset.name;
-  const repo = getRepoByName(name);
+  const repo = findRepo(card.dataset.name);
   if (repo) showDetail(repo);
 });
 
-function getRepoByName(name) {
+function findRepo(name) {
   if (!data) return null;
   const all = [...(data.daily||[]), ...(data.weekly||[]), ...(data.monthly||[]), ...(data.new||[])];
   return all.find(r => r.n === name);
 }
 
-// ─── Detail Panel ────────────────────────────────────────────
+// ─── Detail ───
 function showDetail(r) {
-  el('detailTitle').textContent = r.n;
-  el('detailDesc').textContent = r.d || '暂无描述';
+  el('detailName').textContent = r.n;
+  el('detailDesc').textContent = r.d || 'No description';
 
-  const deltas = [
-    { label: '日增', val: r.s1, icon: '📈' },
-    { label: '周增', val: r.s7, icon: '📊' },
-    { label: '月增', val: r.s30, icon: '🔥' },
+  el('detailGrid').innerHTML = [
+    { v: fmtN(r.s), l: 'Stars', c: '' },
+    { v: fmtN(r.f), l: 'Forks', c: '' },
+    { v: r.s1 != null ? fmtD(r.s1) : '—', l: 'Daily', c: r.s1 > 0 ? 'up' : 'neutral' },
+    { v: r.s7 != null ? fmtD(r.s7) : '—', l: 'Weekly', c: r.s7 > 0 ? 'up' : 'neutral' },
+    { v: r.s30 != null ? fmtD(r.s30) : '—', l: 'Monthly', c: r.s30 > 0 ? 'up' : 'neutral' },
+    { v: ago(r.pa) || '—', l: 'Last Push', c: '' },
+  ].map(d => `<div class="detail-cell"><div class="detail-cell-val ${d.c}">${d.v}</div><div class="detail-cell-label">${d.l}</div></div>`).join('');
+
+  const bars = [
+    { label: 'Day', value: r.s1 || 0 },
+    { label: 'Week', value: r.s7 || 0 },
+    { label: 'Month', value: r.s30 || 0 },
   ];
-  el('detailStats').innerHTML = `
-    <div class="detail-stat"><div class="detail-stat-num neutral">${fmtN(r.s)}</div><div class="detail-stat-label">⭐ 总 Star</div></div>
-    <div class="detail-stat"><div class="detail-stat-num neutral">${fmtN(r.f)}</div><div class="detail-stat-label">🍴 Fork</div></div>
-    ${deltas.map(d => `<div class="detail-stat"><div class="detail-stat-num ${d.val != null && d.val > 0 ? 'up' : 'neutral'}">${d.val != null ? fmtD(d.val) : '-'}</div><div class="detail-stat-label">${d.icon} ${d.label}</div></div>`).join('')}
-    <div class="detail-stat"><div class="detail-stat-num neutral">${ago(r.pa) || '-'}</div><div class="detail-stat-label">🕐 最近推送</div></div>
-  `;
+  const maxV = Math.max(...bars.map(b => Math.abs(b.value)), 1);
+  el('chartArea').innerHTML = bars.map(b => {
+    const h = Math.max(3, (Math.abs(b.value) / maxV) * 80);
+    const cls = b.value > 0 ? 'highlight' : '';
+    return `<div class="chart-col"><div class="chart-bar ${cls}" style="height:${h}%"></div><div class="chart-bar-label">${b.label}</div></div>`;
+  }).join('');
 
-  // Chart: show growth trend
-  const chartData = [
-    { label: '日增', value: r.s1 || 0 },
-    { label: '周增', value: r.s7 || 0 },
-    { label: '月增', value: r.s30 || 0 },
-  ];
-  const maxVal = Math.max(...chartData.map(d => Math.abs(d.value)), 1);
-  el('chartContainer').innerHTML = `<div class="chart-bars">${chartData.map(d => {
-    const h = Math.max(2, (Math.abs(d.value) / maxVal) * 100);
-    const color = d.value > 0 ? 'var(--green)' : d.value < 0 ? 'var(--red)' : 'var(--dim)';
-    return `<div class="chart-bar-wrap"><div class="chart-bar" style="height:${h}%;background:${color}"></div><div class="chart-bar-label">${d.label}</div></div>`;
-  }).join('')}</div>`;
-
-  // Links
   el('detailLinks').innerHTML = `
-    <a class="detail-link" href="${esc(r.u)}" target="_blank">📂 GitHub</a>
-    ${r.hp ? `<a class="detail-link primary" href="${esc(r.hp)}" target="_blank">🌐 官网</a>` : ''}
+    <a class="detail-link" href="${esc(r.u)}" target="_blank" rel="noopener">
+      <svg class="icon icon-sm" viewBox="0 0 24 24" style="margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      Repository
+    </a>
+    ${r.hp ? `<a class="detail-link primary" href="${esc(r.hp)}" target="_blank" rel="noopener">Homepage</a>` : ''}
   `;
 
   el('detailOverlay').classList.add('show');
   el('detailPanel').classList.add('show');
 }
+function closeDetail() { el('detailOverlay').classList.remove('show'); el('detailPanel').classList.remove('show'); }
 
-function closeDetail() {
-  el('detailOverlay').classList.remove('show');
-  el('detailPanel').classList.remove('show');
-}
-
-// ─── Load Data ───────────────────────────────────────────────
+// ─── Load ───
 async function loadData() {
-  const btn = el('refreshBtn'); btn.classList.add('loading'); btn.textContent = '⏳';
-
+  el('btnRefresh').classList.add('active');
   try {
     const cached = localStorage.getItem('gh_data');
-    const cacheTime = localStorage.getItem('gh_data_time');
-    if (cached && cacheTime && (Date.now() - cacheTime < 30 * 60 * 1000)) {
-      data = JSON.parse(cached); render(); updateMeta();
-    }
+    const ct = localStorage.getItem('gh_data_time');
+    if (cached && ct && Date.now() - ct < 30*60*1000) { data = JSON.parse(cached); render(); updateMeta(); }
 
-    const urls = ['data/summary.json', 'https://raw.githubusercontent.com/thisDy/github-trending/main/data/summary.json'];
     let fetched = null;
-    for (const url of urls) {
-      try { const resp = await fetch(url, { cache: 'no-cache' }); if (resp.ok) { fetched = await resp.json(); break; } } catch {}
+    for (const url of ['data/summary.json', 'https://raw.githubusercontent.com/thisDy/github-trending/main/data/summary.json']) {
+      try { const r = await fetch(url, { cache: 'no-cache' }); if (r.ok) { fetched = await r.json(); break; } } catch {}
     }
-
-    if (fetched && fetched.daily && fetched.daily.length > 0) {
+    if (fetched && fetched.daily && fetched.daily.length) {
       data = fetched;
       localStorage.setItem('gh_data', JSON.stringify(data));
       localStorage.setItem('gh_data_time', Date.now().toString());
-      render(); updateMeta(); toast('✅ 已更新');
+      render(); updateMeta(); toast('Updated');
     } else if (!cached) {
-      el('content').innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>暂无数据<br><small>GitHub Actions 每天自动采集</small></p></div>';
+      el('content').innerHTML = '<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg><div class="empty-text">No data yet</div><div class="empty-sub">GitHub Actions collects data daily</div></div>';
     }
   } catch {
-    if (localStorage.getItem('gh_data')) { data = JSON.parse(localStorage.getItem('gh_data')); render(); toast('📡 网络不佳'); }
-    else el('content').innerHTML = '<div class="empty"><div class="empty-icon">😵</div><p>加载失败</p></div>';
-  } finally { btn.classList.remove('loading'); btn.textContent = '🔄'; }
+    if (localStorage.getItem('gh_data')) { data = JSON.parse(localStorage.getItem('gh_data')); render(); toast('Using cache'); }
+    else el('content').innerHTML = '<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div class="empty-text">Connection failed</div></div>';
+  } finally { setTimeout(() => el('btnRefresh').classList.remove('active'), 300); }
 }
 
 function updateMeta() {
@@ -431,63 +550,53 @@ function updateMeta() {
   el('statsBar').style.display = 'flex';
   el('statTotal').textContent = fmtN(data.total);
   el('statUpdated').textContent = ago(data.generated_at);
-  el('statTopLang').textContent = (data.langs && data.langs[0]) || '-';
-  const d = new Date(data.generated_at);
-  const pad = n => String(n).padStart(2, '0');
-  el('updateTime').textContent = `${data.date} · ${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  if (data.langs && data.langs.length) {
-    el('langBar').innerHTML = '<button class="lang-btn active" data-lang="">全部</button>' + data.langs.map(l => `<button class="lang-btn" data-lang="${esc(l)}">${esc(l)}</button>`).join('');
+  el('statTopLang').textContent = data.langs?.[0] || '—';
+  if (data.langs?.length) {
+    el('langRow').innerHTML = '<button class="lang-chip active" data-lang="">All</button>' + data.langs.map(l => `<button class="lang-chip" data-lang="${esc(l)}">${esc(l)}</button>`).join('');
   }
 }
 
-// ─── Render ──────────────────────────────────────────────────
 function render() {
   if (!data) return;
-  const tabData = { daily: data.daily || [], weekly: data.weekly || [], monthly: data.monthly || [], new: data.new || [] };
-  let repos = tabData[currentTab] || [];
-
-  // Language filter
+  const src = { daily: data.daily||[], weekly: data.weekly||[], monthly: data.monthly||[], new: data.new||[] };
+  let repos = src[currentTab] || [];
   if (currentLang) repos = repos.filter(r => r.l === currentLang);
-
-  // Search filter
-  if (searchQuery) {
-    repos = repos.filter(r =>
-      (r.n && r.n.toLowerCase().includes(searchQuery)) ||
-      (r.d && r.d.toLowerCase().includes(searchQuery)) ||
-      (r.l && r.l.toLowerCase().includes(searchQuery)) ||
-      (r.t && r.t.some(t => t.toLowerCase().includes(searchQuery)))
-    );
-  }
-
-  // Sort
-  const deltaKey = { daily: 's1', weekly: 's7', monthly: 's30', new: 's' }[currentTab];
-  if (sortAsc) repos = [...repos].sort((a, b) => (a[deltaKey] || 0) - (b[deltaKey] || 0));
+  if (searchQuery) repos = repos.filter(r =>
+    (r.n?.toLowerCase().includes(searchQuery)) ||
+    (r.d?.toLowerCase().includes(searchQuery)) ||
+    (r.l?.toLowerCase().includes(searchQuery))
+  );
+  const dk = { daily:'s1', weekly:'s7', monthly:'s30', new:'s' }[currentTab];
+  if (sortAsc) repos = [...repos].sort((a,b) => (a[dk]||0) - (b[dk]||0));
 
   if (!repos.length) {
-    el('content').innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>没有${searchQuery ? '匹配的' : currentLang ? currentLang + ' ' : ''}项目</p></div>`;
+    el('content').innerHTML = `<div class="empty"><svg class="empty-icon" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><div class="empty-text">No results</div></div>`;
     return;
   }
 
+  const isNew = currentTab === 'new';
   el('content').innerHTML = repos.map((r, i) => {
-    const rank = i + 1, rc = rank <= 3 ? `rank-${rank}` : 'rank-n';
-    const isNew = currentTab === 'new';
-    const delta = r[deltaKey];
-    const lc = r.lc || 'var(--dim)';
+    const delta = r[dk];
+    const deltaHtml = isNew
+      ? `<div class="card-delta">${fmtN(r.s)}</div>`
+      : delta != null
+        ? `<div class="card-delta ${delta === 0 ? 'zero' : ''}">${fmtD(delta)}</div>`
+        : '';
     return `
       <div class="card" data-name="${esc(r.n)}">
-        <div class="card-rank ${rc}">#${rank}</div>
-        <div class="card-main">
-          <div class="card-header">
+        <div class="card-top">
+          <div class="card-rank">${i + 1}</div>
+          <div class="card-info">
             <div class="card-name">${esc(r.n)}</div>
-            ${!isNew && delta != null ? `<div class="card-delta">⭐ ${fmtD(delta)}</div>` : ''}
-            ${isNew ? `<div class="card-delta">🆕 ${fmtN(r.s)}</div>` : ''}
+            <div class="card-desc">${esc(r.d)}</div>
           </div>
-          <div class="card-desc">${esc(r.d)}</div>
-          <div class="card-meta">
-            ${r.l ? `<span><span class="lang-dot" style="background:${esc(lc)}"></span>${esc(r.l)}</span>` : ''}
-            <span>⭐ ${fmtN(r.s)}</span><span>🍴 ${fmtN(r.f)}</span>
-            ${r.pa ? `<span>🕐 ${ago(r.pa)}</span>` : ''}
-          </div>
+          ${deltaHtml}
+        </div>
+        <div class="card-meta">
+          ${r.l ? `<span class="card-meta-item"><span class="lang-dot" style="background:${esc(r.lc||'#6e6e73')}"></span>${esc(r.l)}</span>` : ''}
+          <span class="card-meta-item"><svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor" stroke="none"/></svg>${fmtN(r.s)}</span>
+          <span class="card-meta-item"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>${fmtN(r.f)}</span>
+          ${r.pa ? `<span class="card-meta-item"><svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${ago(r.pa)}</span>` : ''}
         </div>
       </div>`;
   }).join('');
