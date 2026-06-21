@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#141517">
+<meta name="theme-color" content="#1a1816">
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,26 +17,26 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  /* ── Layered Background (由深至浅) ── */
-  --canvas:    #141517;              /* 最深 · 全局背景 */
-  --surface-0: #18191E;              /* 中间 · 统计栏 */
-  --surface-1: #1F2023;              /* 最亮 · 卡片 */
-  --surface-2: #26272B;              /* hover 态卡片 */
+  /* ── Layered Background (暖调奢华) ── */
+  --canvas:    #1a1816;              /* 最深 · 全局背景 · 暖棕灰 */
+  --surface-0: #201e1b;              /* 中间 · 统计栏 */
+  --surface-1: #28251f;              /* 最亮 · 卡片 */
+  --surface-2: #302c25;              /* hover 态卡片 */
 
   /* ── Border ── */
-  --border:    #2C2D31;              /* 优雅描边 */
-  --border-h:  rgba(255,255,255,0.10); /* hover 态 */
+  --border:    #3a3529;              /* 暖金描边 */
+  --border-h:  rgba(212,168,83,0.18); /* hover 态 · 金光 */
 
-  /* ── Text (rgba 体系，与背景自动融合) ── */
-  --tx-1:      #F5F6F8;              /* 主标题 · 最亮 */
-  --tx-2:      rgba(255,255,255,0.70); /* 描述文字 */
-  --tx-3:      rgba(255,255,255,0.45); /* 元数据 */
-  --tx-4:      rgba(255,255,255,0.28); /* 最暗辅助 */
+  /* ── Text ── */
+  --tx-1:      #f5f0e8;              /* 主标题 · 暖白 */
+  --tx-2:      rgba(245,240,232,0.68); /* 描述文字 */
+  --tx-3:      rgba(245,240,232,0.42); /* 元数据 */
+  --tx-4:      rgba(245,240,232,0.24); /* 最暗辅助 */
 
-  /* ── Accent (品牌色) ── */
-  --accent:    #6E8EFB;              /* 蓝紫品牌色 */
-  --accent-2:  #A777E3;              /* 渐变终点 */
-  --green:     #22C55E;
+  /* ── Accent (金色体系) ── */
+  --accent:    #d4a853;              /* 主金色 */
+  --accent-2:  #f0d78c;              /* 浅金 · 渐变终点 */
+  --green:     #5ec269;
 
   /* ── Spacing (4px grid) ── */
   --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px;
@@ -55,8 +55,8 @@
   --dur: 300ms;
 
   /* ── Shadow (微弱，仅用于浮层) ── */
-  --sh-card: 0 1px 3px rgba(0,0,0,0.25);
-  --sh-card-h: 0 4px 16px rgba(0,0,0,0.35);
+  --sh-card: 0 1px 3px rgba(0,0,0,0.3);
+  --sh-card-h: 0 4px 20px rgba(212,168,83,0.08), 0 2px 8px rgba(0,0,0,0.3);
   --sh-sheet: 0 -8px 40px rgba(0,0,0,0.5);
 }
 
@@ -85,7 +85,7 @@ button { font-family: inherit; cursor: pointer; }
    ═══════════════════════════════════════════ */
 .header {
   position:sticky; top:0; z-index:100;
-  background: rgba(20,21,23,0.80);
+  background: rgba(26,24,22,0.80);
   backdrop-filter: saturate(150%) blur(20px);
   -webkit-backdrop-filter: saturate(150%) blur(20px);
   border-bottom: 1px solid var(--border);
