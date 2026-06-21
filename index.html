@@ -364,10 +364,10 @@
       </div>
     </div>
     <div class="tabs" id="tabs">
-      <button class="tab-btn active" data-tab="daily">Daily</button>
-      <button class="tab-btn" data-tab="weekly">Weekly</button>
-      <button class="tab-btn" data-tab="monthly">Monthly</button>
-      <button class="tab-btn" data-tab="new">New</button>
+      <button class="tab-btn active" data-tab="daily">Today</button>
+      <button class="tab-btn" data-tab="weekly">This Week</button>
+      <button class="tab-btn" data-tab="monthly">This Month</button>
+      <button class="tab-btn" data-tab="rising">Rising</button>
     </div>
   </div>
 </div>
@@ -427,7 +427,7 @@ const fmtD = n => { if (n == null) return ''; const p = n > 0 ? '+' : ''; if (n 
 const ago = iso => { if (!iso) return ''; const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000); if (m < 60) return m + 'm'; const h = Math.floor(m/60); if (h < 24) return h + 'h'; return Math.floor(h/24) + 'd'; };
 const toast = m => { const t = el('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
-let data = null, currentTab = 'daily', currentLang = '', searchQuery = '', sortAsc = false, deferredPrompt = null;
+let data = null, currentTab = 'daily', currentLang = '', searchQuery = '', sortAsc = false, deferredPrompt = null, hasDelta = false;
 
 // ─── PWA ───
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -558,15 +558,18 @@ function updateMeta() {
 
 function render() {
   if (!data) return;
-  const src = { daily: data.daily||[], weekly: data.weekly||[], monthly: data.monthly||[], new: data.new||[] };
+  const src = { daily: data.daily||[], weekly: data.weekly||[], monthly: data.monthly||[], rising: data.new||[] };
   let repos = src[currentTab] || [];
+
+  // Detect if we have real delta data
+  hasDelta = repos.some(r => r.s1 != null && r.s1 !== 0);
   if (currentLang) repos = repos.filter(r => r.l === currentLang);
   if (searchQuery) repos = repos.filter(r =>
     (r.n?.toLowerCase().includes(searchQuery)) ||
     (r.d?.toLowerCase().includes(searchQuery)) ||
     (r.l?.toLowerCase().includes(searchQuery))
   );
-  const dk = { daily:'s1', weekly:'s7', monthly:'s30', new:'s' }[currentTab];
+  const dk = { daily:'s1', weekly:'s7', monthly:'s30', rising:'s30' }[currentTab];
   if (sortAsc) repos = [...repos].sort((a,b) => (a[dk]||0) - (b[dk]||0));
 
   if (!repos.length) {
@@ -574,14 +577,27 @@ function render() {
     return;
   }
 
-  const isNew = currentTab === 'new';
-  el('content').innerHTML = repos.map((r, i) => {
+  const isRising = currentTab === 'rising';
+
+  // Notice banner for first-run (no delta data)
+  let notice = '';
+  if (!hasDelta && !isRising) {
+    notice = `<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--text-3);line-height:1.5;display:flex;align-items:flex-start;gap:8px;"><svg class="icon icon-sm" style="flex-shrink:0;margin-top:1px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>Showing total stars. Daily/weekly deltas will appear after data collection runs for multiple days. <a href="https://github.com/thisDy/github-trending/actions" target="_blank" rel="noopener" style="color:var(--text-2);text-decoration:underline;">Check Actions</a></span></div>`;
+  }
+
+  // Delta description per tab (for the card subtitle)
+  const deltaDesc = { daily: 'star change today', weekly: 'star change this week', monthly: 'star change this month', rising: 'total stars' };
+
+  el('content').innerHTML = notice + repos.map((r, i) => {
     const delta = r[dk];
-    const deltaHtml = isNew
-      ? `<div class="card-delta">${fmtN(r.s)}</div>`
-      : delta != null
-        ? `<div class="card-delta ${delta === 0 ? 'zero' : ''}">${fmtD(delta)}</div>`
-        : '';
+    let deltaHtml;
+    if (isRising) {
+      deltaHtml = `<div class="card-delta">${fmtN(r.s)}</div>`;
+    } else if (hasDelta && delta != null && delta !== 0) {
+      deltaHtml = `<div class="card-delta">${fmtD(delta)}</div>`;
+    } else {
+      deltaHtml = `<div class="card-delta zero">${fmtN(r.s)}</div>`;
+    }
     return `
       <div class="card" data-name="${esc(r.n)}">
         <div class="card-top">
