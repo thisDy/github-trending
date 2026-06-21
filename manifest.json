@@ -1,0 +1,14 @@
+{
+  "name": "GitHub 热榜",
+  "short_name": "热榜",
+  "description": "实时追踪 GitHub 热门开源项目，日增/周增/月增排行",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
