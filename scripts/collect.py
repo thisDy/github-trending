@@ -311,7 +311,10 @@ def generate_summary(rankings):
         "daily": slim(rankings["trending_daily"]),
         "weekly": slim(rankings["trending_weekly"]),
         "monthly": slim(rankings["trending_monthly"]),
-        "new": slim(rankings["new_repos"], 20),
+        "new": slim(sorted(
+            [r for r in repos if r.get("created_at") and r["created_at"][:10] >= (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d") and r["stars"] >= 500],
+            key=lambda x: x["stars"], reverse=True
+        ), 30),
         "langs": list(rankings["by_language"].keys())[:20],
     }
 
