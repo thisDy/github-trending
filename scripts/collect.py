@@ -285,7 +285,7 @@ def generate_rankings(repos):
     return rankings
 
 
-def generate_summary(rankings):
+def generate_summary(rankings, all_repos):
     """生成前端用的轻量摘要"""
     def slim(repo_list, limit=30):
         return [{
@@ -311,7 +311,10 @@ def generate_summary(rankings):
         "daily": slim(rankings["trending_daily"]),
         "weekly": slim(rankings["trending_weekly"]),
         "monthly": slim(rankings["trending_monthly"]),
-        "new": slim(rankings["new_repos"], 20),
+        "new": slim(sorted(
+            [r for r in all_repos if r.get("created_at") and r["created_at"][:10] >= (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d") and r["stars"] >= 500],
+            key=lambda x: x["stars"], reverse=True
+        ), 30),
         "langs": list(rankings["by_language"].keys())[:20],
     }
 
@@ -364,13 +367,23 @@ def main():
     print(f"\n🏆 生成排行榜...")
     rankings = generate_rankings(repos)
 
-    # 如果没有增量数据（首次运行），按绝对 star 数排序
+    # 首次运行无增量数据时，用不同维度区分各 tab
+    now = datetime.utcnow()
     if not rankings["trending_daily"]:
-        rankings["trending_daily"] = sorted(repos, key=lambda x: x["stars"], reverse=True)[:100]
+        # Daily: 最近24h有推送的高星仓库（活跃项目）
+        day_ago = (now - timedelta(days=1)).strftime("%Y-%m-%dT%H")
+        active = [r for r in repos if r.get("pushed_at", "") >= day_ago]
+        rankings["trending_daily"] = sorted(active, key=lambda x: x["stars"], reverse=True)[:100]
     if not rankings["trending_weekly"]:
-        rankings["trending_weekly"] = sorted(repos, key=lambda x: x["stars"], reverse=True)[:100]
+        # Weekly: 最近7天有推送的高星仓库
+        week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H")
+        active = [r for r in repos if r.get("pushed_at", "") >= week_ago]
+        rankings["trending_weekly"] = sorted(active, key=lambda x: x["stars"], reverse=True)[:100]
     if not rankings["trending_monthly"]:
-        rankings["trending_monthly"] = sorted(repos, key=lambda x: x["stars"], reverse=True)[:100]
+        # Monthly: 最近30天创建的新仓库，按star排序（新项目爆发力）
+        month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        new = [r for r in repos if r.get("created_at", "") and r["created_at"][:10] >= month_ago]
+        rankings["trending_monthly"] = sorted(new, key=lambda x: x["stars"], reverse=True)[:100]
 
     # 5. 保存完整数据
     full_path = DATA_DIR / "rankings.json"
@@ -379,7 +392,7 @@ def main():
     print(f"  💾 完整数据: {full_path} ({full_path.stat().st_size / 1024:.0f} KB)")
 
     # 6. 生成前端用的轻量摘要
-    summary = generate_summary(rankings)
+    summary = generate_summary(rankings, repos)
     summary_path = DATA_DIR / "summary.json"
     with open(summary_path, "w") as f:
         json.dump(summary, f, ensure_ascii=False, separators=(",", ":"))
